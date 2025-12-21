@@ -1,0 +1,29 @@
+body { 
+    font-family: 'Inter', sans-serif; 
+    background-color: #f3f4f6; 
+}
+
+.page-section { 
+    display: none; 
+    animation: fadeIn 0.3s ease-in-out; 
+}
+
+.page-section.active { 
+    display: block; 
+}
+
+@keyframes fadeIn { 
+    from { opacity: 0; } 
+    to { opacity: 1; } 
+}
+
+.loader { 
+    border-top-color: #3498db; 
+    -webkit-animation: spinner 1.5s linear infinite; 
+    animation: spinner 1.5s linear infinite; 
+}
+
+@keyframes spinner { 
+    0% { transform: rotate(0deg); } 
+    100% { transform: rotate(360deg); } 
+}
