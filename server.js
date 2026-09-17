@@ -1,7 +1,3 @@
-// Log immédiat, avant tout require : si cette ligne n'apparaît jamais dans les
-// journaux d'exécution après déploiement, le fichier n'est pas exécuté du tout
-// (problème Passenger/infra côté hébergeur, pas le code). Si elle apparaît,
-// le process démarre bel et bien et l'erreur est plus loin dans le boot.
 console.log(`[boot] server.js démarre — pid=${process.pid} node=${process.version} cwd=${process.cwd()} time=${new Date().toISOString()}`);
 
 process.on('uncaughtException', (err) => {
