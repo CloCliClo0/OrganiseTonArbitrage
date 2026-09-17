@@ -1,50 +1,76 @@
-require('dotenv').config();
+// Log immédiat, avant tout require : si cette ligne n'apparaît jamais dans les
+// journaux d'exécution après déploiement, le fichier n'est pas exécuté du tout
+// (problème Passenger/infra côté hébergeur, pas le code). Si elle apparaît,
+// le process démarre bel et bien et l'erreur est plus loin dans le boot.
+console.log(`[boot] server.js démarre — pid=${process.pid} node=${process.version} cwd=${process.cwd()} time=${new Date().toISOString()}`);
 
-const express = require('express');
-const cookieParser = require('cookie-parser');
-const path = require('path');
-const pool = require('./db');
-const { readSession } = require('./middleware/auth');
+process.on('uncaughtException', (err) => {
+    console.error('[fatal] uncaughtException:', err);
+    process.exit(1);
+});
+process.on('unhandledRejection', (err) => {
+    console.error('[fatal] unhandledRejection:', err);
+    process.exit(1);
+});
 
-const app = express();
-app.disable('x-powered-by');
+try {
+    require('dotenv').config();
 
-app.use(express.json());
-app.use(cookieParser());
-app.use(readSession);
+    const express = require('express');
+    const cookieParser = require('cookie-parser');
+    const path = require('path');
+    const pool = require('./db');
+    const { readSession } = require('./middleware/auth');
 
-// --- Routes API (mêmes URLs que l'ancien backend PHP, pour rester compatible avec js/script.js) ---
-app.use('/api/auth.php', require('./routes/auth'));
-app.use('/api/bookings.php', require('./routes/bookings'));
-app.use('/api/matches.php', require('./routes/matches'));
-app.use('/api/debug.php', require('./routes/debug'));
+    console.log('[boot] dépendances chargées, initialisation Express...');
 
-// --- Health check (indépendant du reste, ne doit jamais planter) ---
-app.get(['/health', '/health.php'], async (req, res) => {
-    const checks = { node_version: process.version };
-    let dbOk = false;
-    let dbError = null;
-    try {
-        await pool.query('SELECT 1');
-        dbOk = true;
-    } catch (e) {
-        dbError = e.message;
-    }
-    checks.database = dbOk ? 'ok' : 'error';
-    if (!dbOk && process.env.APP_ENV === 'development') checks.database_error = dbError;
-    checks.smtp_configured = !!process.env.SMTP_HOST;
+    const app = express();
+    app.disable('x-powered-by');
 
-    res.status(dbOk ? 200 : 503).json({
-        status: dbOk ? 'ok' : 'degraded',
-        time: new Date().toISOString(),
-        checks,
+    app.use(express.json());
+    app.use(cookieParser());
+    app.use(readSession);
+
+    // --- Routes API (mêmes URLs que l'ancien backend PHP, pour rester compatible avec js/script.js) ---
+    app.use('/api/auth.php', require('./routes/auth'));
+    app.use('/api/bookings.php', require('./routes/bookings'));
+    app.use('/api/matches.php', require('./routes/matches'));
+    app.use('/api/debug.php', require('./routes/debug'));
+
+    // --- Health check (indépendant du reste, ne doit jamais planter) ---
+    app.get(['/health', '/health.php'], async (req, res) => {
+        const checks = { node_version: process.version };
+        let dbOk = false;
+        let dbError = null;
+        try {
+            await pool.query('SELECT 1');
+            dbOk = true;
+        } catch (e) {
+            dbError = e.message;
+        }
+        checks.database = dbOk ? 'ok' : 'error';
+        if (!dbOk && process.env.APP_ENV === 'development') checks.database_error = dbError;
+        checks.smtp_configured = !!process.env.SMTP_HOST;
+
+        res.status(dbOk ? 200 : 503).json({
+            status: dbOk ? 'ok' : 'degraded',
+            time: new Date().toISOString(),
+            checks,
+        });
     });
-});
 
-// --- Fichiers statiques du frontend (uniquement public/, jamais la racine du projet) ---
-app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html' }));
+    // --- Fichiers statiques du frontend (uniquement public/, jamais la racine du projet) ---
+    app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html' }));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`PlannifierMonArbitrage démarré sur le port ${PORT}`);
-});
+    const PORT = process.env.PORT || 3000;
+    const server = app.listen(PORT, () => {
+        console.log(`[boot] PlannifierMonArbitrage démarré et à l'écoute sur le port ${PORT}`);
+    });
+    server.on('error', (err) => {
+        console.error('[fatal] échec app.listen():', err);
+        process.exit(1);
+    });
+} catch (err) {
+    console.error('[fatal] erreur pendant l\'initialisation de server.js:', err);
+    process.exit(1);
+}
