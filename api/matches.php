@@ -9,12 +9,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     exit;
 }
 
-// POST: Ajouter un match (Admin/Dirigeant seulement)
+// POST: Ajouter un match (Admin/Coach seulement)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_GET['action'] ?? '';
     // Update match
     if ($action === 'update') {
-        if (!isset($_SESSION['user']) || !in_array($_SESSION['user']['role'], ['admin', 'dirigeant'])) {
+        if (!isset($_SESSION['user']) || !in_array($_SESSION['user']['role'], ['admin', 'coach'])) {
             http_response_code(403);
             echo json_encode(['error' => 'Non autorisé']); exit;
         }
@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         exit;
     }
-    if (!isset($_SESSION['user']) || !in_array($_SESSION['user']['role'], ['admin', 'dirigeant'])) {
+    if (!isset($_SESSION['user']) || !in_array($_SESSION['user']['role'], ['admin', 'coach'])) {
         http_response_code(403);
         echo json_encode(['error' => 'Non autorisé']);
         exit;

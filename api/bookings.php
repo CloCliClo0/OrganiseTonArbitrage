@@ -1,5 +1,6 @@
 <?php
 require 'config.php';
+require 'mailer.php';
 
 $action = $_GET['action'] ?? '';
 
@@ -60,6 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 // POST: Créer une réservation
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents("php://input"), true);
+
     // Endpoint pour mettre à jour un utilisateur (profil)
     if ($action === 'updateUser') {
         if (!isset($_SESSION['user'])) {
@@ -82,6 +85,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($fields)) { echo json_encode(['success' => false, 'message' => 'Aucun champ']); exit; }
 
         $params[] = $userId;
+        $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        if ($stmt->execute($params)) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Erreur SQL']);
+        }
+        exit;
+    }
+
+    // Endpoint admin : mise à jour complète d'un profil (utilisé par la gestion des utilisateurs)
+    if ($action === 'update_user') {
+        if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'admin') {
+            echo json_encode(['success' => false, 'message' => 'Non autorisé']); exit;
+        }
+        $targetId = (int)($data['id'] ?? 0);
+        if ($targetId <= 0) { echo json_encode(['success' => false, 'message' => 'ID manquant']); exit; }
+
+        $fields = [];
+        $params = [];
+        $allowed = ['nom','prenom','email','age','telephone','role','categorie','status'];
+        foreach ($allowed as $col) {
+            if (isset($data[$col])) {
+                $fields[] = "$col = ?";
+                $params[] = $data[$col];
+            }
+        }
+        if (empty($fields)) { echo json_encode(['success' => false, 'message' => 'Aucun champ']); exit; }
+
+        $params[] = $targetId;
         $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?";
         $stmt = $pdo->prepare($sql);
         if ($stmt->execute($params)) {
@@ -122,7 +155,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['error' => 'Non connecté']); exit;
     }
 
-    $data = json_decode(file_get_contents("php://input"), true);
     $userId = $_SESSION['user']['id'];
 
     // If presenceDate provided, handle presence insertion per day
@@ -145,6 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $ins = $pdo->prepare("INSERT INTO presences (date, user_id) VALUES (?, ?)");
         if ($ins->execute([$date, $userId])) {
+            notifyStaffNewRegistration($pdo, $_SESSION['user'], $date);
             echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
         } else {
             echo json_encode(['success' => false, 'message' => 'Erreur SQL']);
@@ -166,7 +199,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $existsStmt->execute([$date, $userId]);
             if ($existsStmt->fetchColumn() > 0) { $results[$date] = ['success'=>false,'message'=>'Déjà inscrit']; continue; }
             $ins = $pdo->prepare("INSERT INTO presences (date, user_id) VALUES (?, ?)");
-            if ($ins->execute([$date, $userId])) { $results[$date] = ['success'=>true,'id'=>$pdo->lastInsertId()]; }
+            if ($ins->execute([$date, $userId])) {
+                notifyStaffNewRegistration($pdo, $_SESSION['user'], $date);
+                $results[$date] = ['success'=>true,'id'=>$pdo->lastInsertId()];
+            }
             else { $results[$date] = ['success'=>false,'message'=>'Erreur SQL']; }
         }
         // Update commentaire if provided

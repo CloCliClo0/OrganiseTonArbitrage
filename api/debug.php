@@ -1,10 +1,13 @@
 <?php
 require 'config.php';
 
-// Endpoint de debug - à supprimer après diagnostic
+// Endpoint de debug - réservé aux admins connectés
 header('Content-Type: application/json; charset=utf-8');
 
-session_start();
+if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'admin') {
+    http_response_code(404);
+    exit;
+}
 
 $out = ['ok' => true, 'env' => [], 'session' => null, 'counts' => []];
 

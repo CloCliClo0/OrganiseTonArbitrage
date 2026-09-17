@@ -105,12 +105,15 @@
                         <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Catégorie</label>
                         <select id="reg-cat" class="w-full p-2 border rounded bg-white">
                             <option value="Senior">Senior</option>
-                            <option value="Senior">Vétéran</option>
-                            <option value="Senior">U18</option>
+                            <option value="Veteran">Vétéran</option>
+                            <option value="U18">U18</option>
                         </select>
                     </div>
-                    
-                    <input type="hidden" id="reg-code" value="111111">
+
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Code d'invitation (staff, facultatif)</label>
+                        <input type="text" id="reg-code" class="w-full p-2 border rounded" placeholder="Laisser vide si vous êtes joueur">
+                    </div>
 
                     <div class="mb-6">
                         <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Mot de passe</label>
@@ -132,6 +135,15 @@
                     La plateforme dédiée à la gestion simplifiée de l'arbitrage de notre club.
                     Consultez le calendrier et inscrivez-vous !
                 </p>
+            </div>
+
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-lg font-bold mb-4 text-gray-800">Vos prochaines présences</h3>
+                    <div id="home-presences-list" class="space-y-2">
+                        <p class="text-gray-500 italic">Chargement...</p>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -273,55 +285,6 @@
     </main>
 
     <!-- Chargement des scripts -->
-    <script src="js/script.js?v=2"></script>
-    <!-- Modal Week-end (hidden) -->
-    <div id="weekend-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 items-center justify-center">
-        <div class="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4">
-            <div class="flex justify-between items-center px-6 py-4 border-b">
-                <h3 id="weekend-modal-title" class="text-lg font-bold">Week-end</h3>
-                <button onclick="document.getElementById('weekend-modal').classList.add('hidden')" class="text-gray-600 hover:text-gray-900">&times;</button>
-            </div>
-            <div id="weekend-modal-body" class="p-6 max-h-96 overflow-y-auto"></div>
-            <div class="flex justify-end gap-2 px-6 py-4 border-t">
-                <button id="weekend-modal-cancel" class="px-4 py-2 rounded bg-gray-200" onclick="document.getElementById('weekend-modal').classList.add('hidden')">Annuler</button>
-                <button id="weekend-modal-save" class="px-4 py-2 rounded bg-blue-600 text-white">Enregistrer la sélection</button>
-            </div>
-        </div>
-    </div>
-            <script>
-                // Supprime les popups alert() pour éviter les interruptions UX
-                window.alert = function(){};
-
-                // Intercepte les clics sur les boutons "Annuler ma présence"
-                // et propose une confirmation avant d'appeler le handler original.
-                document.addEventListener('click', function(e) {
-                    try {
-                        var btn = e.target.closest && e.target.closest('button');
-                        if (!btn) return;
-                        var txt = (btn.innerText || '').trim();
-                        if (txt.indexOf('Annuler ma présence') === 0) {
-                            // Empêche les handlers enregistrés de s'exécuter immédiatement
-                            e.stopImmediatePropagation();
-                            e.preventDefault();
-                            var ok = confirm("Confirmez-vous l'annulation de votre présence ?");
-                            if (!ok) return false; // l'utilisateur annule
-
-                            // Si un handler inline existe (onclick), on l'appelle.
-                            try {
-                                if (typeof btn.onclick === 'function') {
-                                    btn.onclick();
-                                    return false;
-                                }
-                            } catch (err) { console.error(err); }
-
-                            // Sinon, on émet un événement personnalisé pour permettre
-                            // au code existant d'écouter 'confirmedCancel' si besoin.
-                            try {
-                                btn.dispatchEvent(new Event('confirmedCancel'));
-                            } catch (err) { console.error(err); }
-                        }
-                    } catch (err) { console.error(err); }
-                }, true);
-            </script>
+    <script src="js/script.js?v=3"></script>
 </body>
 </html>

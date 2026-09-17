@@ -174,6 +174,7 @@ class App {
     async handleRegister(e) {
         e.preventDefault();
         
+        const codeInput = document.getElementById('reg-code');
         const data = {
             nom: document.getElementById('reg-nom').value,
             prenom: document.getElementById('reg-prenom').value,
@@ -181,7 +182,8 @@ class App {
             age: document.getElementById('reg-age').value,
             tel: document.getElementById('reg-tel').value,
             cat: document.getElementById('reg-cat').value,
-            password: document.getElementById('reg-password').value
+            password: document.getElementById('reg-password').value,
+            code: codeInput ? codeInput.value.trim() : ''
         };
 
         showLoading(true);
@@ -245,73 +247,6 @@ class App {
         this.buildNav();
     }
 
-    async handleAddMatch(e) {
-        e.preventDefault();
-        const data = {
-            date: document.getElementById('match-date').value,
-            time: document.getElementById('match-time').value,
-            opponent: document.getElementById('match-opponent').value,
-            location: document.getElementById('match-location').value,
-            category: document.getElementById('match-category').value
-        };
-
-        showLoading(true);
-        const res = await apiCall('matches.php', 'POST', data);
-        
-        if (res && res.success) {
-            notify("Match ajouté !", "success");
-            e.target.reset();
-            await this.fetchData();
-            this.nav('calendar');
-        } else {
-            notify("Erreur ajout match", "error");
-        }
-        showLoading(false);
-    }
-
-    async toggleBooking(matchId) {
-        if(!currentUser) return;
-        await this.fetchData(); 
-        
-        const myBooking = allBookings.find(b => b.matchId == matchId && b.userId == currentUser.id);
-
-        if (myBooking) {
-            if(!confirm("Annuler votre arbitrage pour ce match ?")) return;
-            const res = await apiCall(`bookings.php?id=${myBooking.id}`, 'DELETE');
-            if(res && res.success) notify("Réservation annulée", "info");
-        } else {
-            const res = await apiCall('bookings.php', 'POST', { matchId });
-            if(res && res.success) {
-                notify("Arbitrage réservé !", "success");
-            } else {
-                notify(res.message || "Impossible de réserver", "error");
-            }
-        }
-        await this.fetchData();
-        this.refreshCurrentView();
-    }
-
-    // Dans js/script.js, méthode renderAdminStats()
-
-    async renderAdminStats() {
-        // ... code d'affichage du chargement ...
-        
-        // C'est ici que l'appel se fait :
-        const users = await apiCall('bookings.php?action=users');
-        
-        if (users) {
-            // Si on reçoit des utilisateurs, on génère le HTML du tableau
-            usersListEl.innerHTML = users.map(u => `
-                <tr class="border-b border-gray-100">
-                    <td class="px-4 py-2 font-medium">${u.nom} ${u.prenom}</td>
-                    <td class="px-4 py-2 text-xs"><span class="bg-gray-200 px-2 py-1 rounded">${u.role}</span></td>
-                    <td class="px-4 py-2 text-xs text-gray-500">${u.categorie}</td>
-                </tr>
-            `).join('');
-        }
-        // ... suite du code ...
-    }
-
     async renderAdminInscriptions() {
         const container = document.getElementById('admin-inscriptions-list');
         container.innerHTML = '<p class="text-gray-500">Chargement...</p>';
@@ -360,48 +295,6 @@ class App {
         container.innerHTML = html;
     }
 
-    async editMatch(id) {
-        if (!currentUser || currentUser.role !== ROLES.ADMIN && currentUser.role !== ROLES.DIRIGEANT) { notify('Accès refusé', 'error'); return; }
-        // Récupérer le match
-        const match = allMatches.find(m => m.id == id);
-        if (!match) { notify('Match introuvable', 'error'); return; }
-
-        const date = prompt('Date (YYYY-MM-DD)', match.date) || match.date;
-        const time = prompt('Heure (HH:MM)', match.time.slice(0,5)) || match.time;
-        const opponent = prompt('Adversaire', match.opponent) || match.opponent;
-        const location = prompt('Lieu (Domicile/Exterieur)', match.location) || match.location;
-        const category = prompt('Catégorie', match.category) || match.category;
-
-        const payload = { id, date, time, opponent, location, category };
-        showLoading(true);
-        const res = await apiCall('matches.php?action=update', 'POST', payload);
-        showLoading(false);
-        if (res && res.success) {
-            notify('Match mis à jour', 'success');
-            await this.fetchData();
-            this.renderAdminInscriptions();
-            this.renderCalendar();
-        } else {
-            notify(res?.message || 'Erreur mise à jour', 'error');
-        }
-    }
-
-    async deleteMatch(id) {
-        if (!currentUser || currentUser.role !== ROLES.ADMIN) { notify('Accès refusé', 'error'); return; }
-        if (!confirm('Supprimer ce match ?')) return;
-        showLoading(true);
-        const res = await apiCall(`matches.php?id=${id}`, 'DELETE');
-        showLoading(false);
-        if (res && res.success) {
-            notify('Match supprimé', 'success');
-            await this.fetchData();
-            this.renderAdminInscriptions();
-            this.renderCalendar();
-        } else {
-            notify(res?.message || 'Erreur suppression', 'error');
-        }
-    }
-
     refreshCurrentView() {
         const activeSection = document.querySelector('.page-section.active');
         if(activeSection) {
@@ -413,21 +306,23 @@ class App {
     }
 
     renderHome() {
-        const list = document.getElementById('home-matches-list');
-        const today = new Date();
-        const nextMatches = allMatches.filter(m => new Date(m.date) >= today).slice(0, 3);
+        const list = document.getElementById('home-presences-list');
+        if (!list) return;
+        const today = new Date().toISOString().slice(0, 10);
+        const mine = (allPresences || [])
+            .filter(p => currentUser && p.user_id == currentUser.id && p.date >= today)
+            .sort((a, b) => a.date.localeCompare(b.date));
 
-        if(nextMatches.length > 0) {
-            document.getElementById('home-weekend-date').innerText = formatDate(nextMatches[0].date);
-            list.innerHTML = nextMatches.map(m => this.getMatchHTML(m, true)).join('');
+        if (mine.length === 0) {
+            list.innerHTML = `<p class="text-gray-500 italic">Aucune présence à venir. <a href="#" onclick="window.app.nav('inscription')" class="text-blue-600 hover:underline">Inscrivez-vous</a>.</p>`;
         } else {
-            list.innerHTML = '<div class="p-6 text-center text-gray-500">Aucun match à venir.</div>';
+            list.innerHTML = mine.map(p => `
+                <div class="flex justify-between items-center bg-blue-50 border border-blue-100 rounded-lg px-4 py-2">
+                    <span class="font-semibold text-blue-900">${formatDate(p.date)}</span>
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">Inscrit</span>
+                </div>
+            `).join('');
         }
-    }
-
-    resetCalendarFilter() {
-        document.getElementById('calendar-filter-date').value = '';
-        this.renderCalendar();
     }
 
     // Remplacer l'ancienne méthode renderCalendar par celle-ci
@@ -456,7 +351,7 @@ class App {
                 presencesForDate.forEach(p => {
                     const selectOptions = SATURDAYS_2026.map(d => `<option value="${d}" ${d === p.date ? 'selected' : ''}>${formatDate(d)}</option>`).join('');
                     html += `<div class="mb-2">
-                        <span class="text-sm">${p.user_nom} ${p.user_prenom}:</span>
+                        <span class="text-sm">${p.nom} ${p.prenom}:</span>
                         <select class="mr-2 p-1 border rounded" data-presence-id="${p.id}">${selectOptions}</select>
                         <button class="bg-blue-500 text-white px-2 py-1 rounded mr-2 text-xs" onclick="window.app.updatePresence(this)">Modifier</button>
                         <button class="bg-red-500 text-white px-2 py-1 rounded text-xs" onclick="window.app.deletePresence('${p.id}')">Supprimer</button>
@@ -470,160 +365,6 @@ class App {
         tbody.innerHTML = html;
     }
 
-    // --- NOUVELLE FONCTION A AJOUTER DANS LA CLASSE APP ---
-    // Cette fonction gère l'ajout/suppression pour tout le week-end d'un coup
-    async handleWeekendToggle(weekKey) {
-        if (!currentUser) { notify('Veuillez vous connecter', 'error'); return; }
-
-        const satDate = weekKey;
-        const sunDT = new Date(new Date(satDate).setDate(new Date(satDate).getDate() + 1));
-        const sunDate = sunDT.toISOString().slice(0, 10);
-
-        // Vérifier si l'utilisateur a déjà des présences ce week-end
-        const myPresences = (this.allPresences || []).filter(p => 
-            p.user_id == currentUser.id && (p.date === satDate || p.date === sunDate)
-        );
-
-        if (myPresences.length > 0) {
-            // CAS 1 : L'utilisateur est présent -> On ANNULE tout (Samedi et Dimanche)
-            if (!confirm("Voulez-vous retirer votre présence pour ce week-end ?")) return;
-            
-            showLoading(true);
-            let successCount = 0;
-            
-            // On supprime chaque entrée de présence trouvée
-            for (const p of myPresences) {
-                // On suppose que l'objet présence a un ID (p.id) récupéré depuis l'API bookings.php?action=presences
-                // Si l'API ne renvoie pas l'ID de la réservation dans 'presences', il faudra ajuster l'API.
-                // Fallback : essayer de trouver la réservation correspondante dans allBookings si p.id est manquant
-                let bookingId = p.id; 
-                if(!bookingId) {
-                    const booking = allBookings.find(b => b.userId == currentUser.id && b.date == p.date);
-                    if(booking) bookingId = booking.id;
-                }
-
-                if(bookingId) {
-                    const res = await apiCall(`bookings.php?id=${bookingId}`, 'DELETE');
-                    if (res && res.success) successCount++;
-                }
-            }
-            showLoading(false);
-            
-            if (successCount > 0) notify("Présence annulée.", "info");
-            else notify("Erreur lors de l'annulation.", "error");
-
-        } else {
-            // CAS 2 : L'utilisateur n'est pas là -> On AJOUTE pour TOUT le week-end
-            
-            // Vérification de sécurité "Max 2 personnes" côté client (doublon de renderCalendar mais nécessaire)
-            const weekendAll = (this.allPresences || []).filter(p => p.date === satDate || p.date === sunDate);
-            const distinctUsers = new Set(weekendAll.map(p => p.user_id));
-            if (distinctUsers.size >= 2) {
-                return notify("Ce week-end est déjà complet (2 personnes max).", "error");
-            }
-
-            if (!confirm("Confirmer votre présence pour le week-end complet (Samedi + Dimanche) ?")) return;
-
-            showLoading(true);
-            // On envoie les deux dates d'un coup
-            const res = await apiCall('bookings.php', 'POST', { presenceDates: [satDate, sunDate] });
-            showLoading(false);
-
-            if (res && res.success) {
-                notify("C'est noté ! Vous êtes présent ce week-end.", "success");
-            } else {
-                notify(res?.message || "Erreur lors de l'enregistrement", "error");
-            }
-        }
-
-        // Rafraîchir les données
-        await this.fetchData();
-        this.renderCalendar();
-    }
-
-    toggleSelectAll(btn) {
-        // Toggle the two day checkboxes if present
-        const root = document.getElementById('weekend-modal-body');
-        const sat = root.querySelector('[data-day="sat"]');
-        const sun = root.querySelector('[data-day="sun"]');
-        if (!sat && !sun) return;
-        const allChecked = (sat ? sat.checked : true) && (sun ? sun.checked : true);
-        if (sat) sat.checked = !allChecked;
-        if (sun) sun.checked = !allChecked;
-    }
-
-    // Réserver tous les matchs d'une même date (samedi ou dimanche)
-    async reserveDay(dateStr) {
-        if (!currentUser) { notify('Veuillez vous connecter pour réserver', 'error'); return; }
-        const matchesToBook = allMatches.filter(m => m.date === dateStr);
-        if (matchesToBook.length === 0) { notify('Aucun match ce jour-là', 'error'); return; }
-
-        if (!confirm(`Voulez-vous indiquer votre présence pour le ${formatDate(dateStr)} ?`)) return;
-        showLoading(true);
-        const res = await apiCall('bookings.php', 'POST', { presenceDate: dateStr });
-        showLoading(false);
-
-        if (!res) { notify('Erreur serveur', 'error'); return; }
-        if (res.success) notify('Présence enregistrée', 'success');
-        else notify(res.message || 'Erreur réservation', 'error');
-
-        await this.fetchData();
-        this.renderCalendar();
-    }
-
-    getMatchHTML(match, isSimple) {
-        // Use presences (day-level) to compute status per match date
-        const pres = (this.allPresences || []).filter(p => p.date === match.date);
-        const isFull = pres.length >= 2;
-        const isBookedByMe = pres.some(p => p.user_id == currentUser?.id || (p.prenom && (p.prenom + ' ' + p.nom) === (currentUser?.prenom + ' ' + currentUser?.nom)));
-        const dateStr = formatDate(match.date);
-        // On retire la réservation par match: on affiche uniquement l'état de présence
-        let statusHTML = '';
-        if (isBookedByMe) {
-            statusHTML = `<span class="px-3 py-1 rounded text-xs font-bold bg-green-100 text-green-700 border border-green-200">Présent</span>`;
-        } else if (isFull) {
-            statusHTML = `<span class="px-3 py-1 rounded text-xs font-bold bg-gray-50 text-gray-400 border border-gray-200">Complet</span>`;
-        } else {
-            statusHTML = `<span class="px-3 py-1 rounded text-xs text-gray-600 border border-gray-100 bg-white">Disponible</span>`;
-        }
-
-        if(isSimple) {
-            return `
-            <div class="p-4 flex justify-between items-center hover:bg-gray-50 transition">
-                <div>
-                    <p class="font-bold text-gray-800">${match.location === 'Domicile' ? 'DOM' : 'EXT'} vs ${match.opponent}</p>
-                    <p class="text-sm text-gray-500">${dateStr} à ${match.time} (${match.category})</p>
-                </div>
-                ${statusHTML}
-            </div>`;
-        }
-
-        return `
-        <tr class="hover:bg-gray-50 border-b border-gray-100 transition">
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                <div class="font-semibold">${dateStr}</div>
-                <div class="text-gray-500">${match.time}</div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap font-bold text-gray-900">
-                vs ${match.opponent}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">${match.category}</span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                ${match.location === 'Domicile' ? '<span class="text-green-600 font-bold"><i class="fa-solid fa-house mr-1"></i>Dom.</span>' : '<span class="text-orange-500 font-bold"><i class="fa-solid fa-bus mr-1"></i>Ext.</span>'}
-            </td>
-            <td class="px-6 py-4 text-center text-sm">
-                <div class="flex justify-center space-x-1">
-                    ${(this.allPresences || []).filter(p => p.date === match.date).map(p => { const name = (p.prenom ? p.prenom + ' ' + p.nom : (p.userName || 'U')); return `<span title="${name}" class="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold border border-indigo-200 cursor-help">${name.charAt(0)}</span>`; }).join('')}
-                    ${[...Array(Math.max(0, 2 - ((this.allPresences || []).filter(p => p.date === match.date).length)))] .map(() => `<span class="w-8 h-8 bg-gray-100 text-gray-300 rounded-full flex items-center justify-center border border-dashed border-gray-300"><i class="fa-solid fa-user"></i></span>`).join('')}
-                </div>
-            </td>
-            <td class="px-6 py-4 text-right">
-                ${statusHTML}
-            </td>
-        </tr>`;
-    }
 
     renderProfile() {
         if(!currentUser) return;
@@ -705,6 +446,7 @@ class App {
     }
 
     deletePresence(presenceId) {
+        if (!confirm("Confirmez-vous l'annulation de cette présence ?")) return;
         this.deletePresenceById(presenceId);
     }
 
@@ -732,7 +474,7 @@ class App {
         const email = prompt('Email', user.email) || user.email;
         const age = prompt('Age', user.age || '') || user.age;
         const telephone = prompt('Téléphone', user.telephone || '') || user.telephone;
-        const role = prompt('Rôle (admin/dirigeant/joueur)', user.role) || user.role;
+        const role = prompt('Rôle (admin/coach/joueur)', user.role) || user.role;
         const categorie = prompt('Catégories (séparées par des virgules)', user.categorie || '') || user.categorie || '';
         const status = prompt('Status (active/inactive)', user.status || 'active') || user.status || 'active';
 
@@ -774,8 +516,9 @@ class App {
 
         const statsEl = document.getElementById('admin-stats-content');
         const counts = {};
-        allBookings.forEach(b => {
-            counts[b.userName] = (counts[b.userName] || 0) + 1;
+        (allPresences || []).forEach(p => {
+            const name = `${p.prenom} ${p.nom}`;
+            counts[name] = (counts[name] || 0) + 1;
         });
 
         if (Object.keys(counts).length === 0) {

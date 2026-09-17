@@ -6,6 +6,22 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 // --- INSCRIPTION ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'register') {
+    $required = ['email', 'password', 'nom', 'prenom'];
+    foreach ($required as $field) {
+        if (empty($data[$field])) {
+            echo json_encode(['success' => false, 'message' => 'Champs obligatoires manquants']);
+            exit;
+        }
+    }
+    if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+        echo json_encode(['success' => false, 'message' => 'Email invalide']);
+        exit;
+    }
+    if (strlen($data['password']) < 6) {
+        echo json_encode(['success' => false, 'message' => 'Mot de passe trop court (6 caractères min.)']);
+        exit;
+    }
+
     $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$data['email']]);
     if ($stmt->fetch()) {
@@ -13,7 +29,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'register') {
         exit;
     }
 
-    $role = 'joueur'; // Rôle par défaut
+    // Rôle attribué selon le code d'inscription saisi (staff), sinon simple joueur
+    $code = trim($data['code'] ?? '');
+    $role = 'joueur';
+    if ($code !== '' && !empty($_ENV['CODE_ADMIN']) && hash_equals($_ENV['CODE_ADMIN'], $code)) {
+        $role = 'admin';
+    } elseif ($code !== '' && !empty($_ENV['CODE_COACH']) && hash_equals($_ENV['CODE_COACH'], $code)) {
+        $role = 'coach';
+    }
 
     $hash = password_hash($data['password'], PASSWORD_DEFAULT);
 
@@ -38,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'login') {
 
     if ($user && password_verify($data['password'], $user['password'])) {
         unset($user['password']);
+        session_regenerate_id(true);
         $_SESSION['user'] = $user;
         echo json_encode(['success' => true, 'user' => $user]);
     } else {
