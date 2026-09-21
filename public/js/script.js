@@ -241,8 +241,6 @@ class App {
         } else {
             allPresences = [];
         }
-
-        sessionDates = Array.isArray(dates) ? dates : [];
     }
 
     async handleLogin(e) {
