@@ -218,6 +218,7 @@ class App {
                 links.push({ id: 'admin-matches', label: 'Gestion Inscriptions', icon: 'fa-edit' });
             }
             if (currentUser && currentUser.role === ROLES.ADMIN) {
+                links.push({ id: 'admin-stats', label: 'Utilisateurs', icon: 'fa-users' });
                 links.push({ id: 'admin-invites', label: 'Codes invitation', icon: 'fa-key' });
                 links.push({ id: 'admin-categories', label: 'Catégories', icon: 'fa-tags' });
             }
@@ -425,8 +426,12 @@ class App {
             } else {
                 html += '<ul class="space-y-2">';
                 presences.forEach(p => {
+                    const contact = [p.email, p.telephone].filter(Boolean).join(' · ');
                     html += `<li class="flex justify-between items-center">
-                        <span>${p.nom} ${p.prenom}</span>
+                        <div>
+                            <span class="font-medium">${p.nom} ${p.prenom}</span>
+                            ${contact ? `<span class="block text-xs text-gray-500">${contact}</span>` : ''}
+                        </div>
                         <div>
                             <select class="mr-2 p-1 border rounded" data-presence-id="${p.id}">`;
                     sessionDates.forEach(d => {

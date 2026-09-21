@@ -21,8 +21,13 @@ router.all('/', async (req, res) => {
         // GET PRESENCES
         if (req.method === 'GET' && action === 'presences') {
             if (!req.auth || !['admin', 'coach', 'joueur'].includes(req.auth.role)) return res.json([]);
+            // Coordonnées (email/téléphone) visibles uniquement pour le staff, pas entre joueurs
+            const isStaff = ['admin', 'coach'].includes(req.auth.role);
+            const cols = isStaff
+                ? 'p.id, p.date, p.user_id, u.nom, u.prenom, u.email, u.telephone'
+                : 'p.id, p.date, p.user_id, u.nom, u.prenom';
             const [rows] = await pool.query(
-                'SELECT p.id, p.date, p.user_id, u.nom, u.prenom, u.email FROM presences p JOIN users u ON p.user_id = u.id ORDER BY p.date ASC'
+                `SELECT ${cols} FROM presences p JOIN users u ON p.user_id = u.id ORDER BY p.date ASC`
             );
             return res.json(rows);
         }
