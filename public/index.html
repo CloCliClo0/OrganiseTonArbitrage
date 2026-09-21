@@ -112,7 +112,7 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Code d'invitation (staff, facultatif)</label>
+                        <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Code d'invitation (coach, facultatif)</label>
                         <input type="text" id="reg-code" class="w-full p-2 border rounded" placeholder="Laisser vide si vous êtes joueur">
                     </div>
 
@@ -121,6 +121,53 @@
                         <input type="password" id="reg-password" class="w-full p-2 border rounded" required>
                     </div>
                     <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition">Créer mon compte</button>
+                </form>
+                <div class="mt-4 text-center text-sm">
+                    Déjà un compte ? <a href="#" onclick="window.app.nav('login')" class="text-blue-600 hover:underline">Se connecter</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- AUTH: REGISTER ADMIN (via lien dédié uniquement) -->
+        <section id="view-register-admin" class="page-section">
+            <div class="max-w-lg mx-auto bg-white p-8 rounded-xl shadow-md mt-5">
+                <div class="flex items-center justify-center gap-3 mb-2">
+                    <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-blue-900">Inscription Administrateur</h2>
+                </div>
+                <p class="text-sm text-gray-500 mb-6 text-center">Ce formulaire crée un compte avec les droits d'administration complets du club.</p>
+                <form onsubmit="window.app.handleRegisterAdmin(event)">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Nom</label>
+                            <input type="text" id="rega-nom" class="w-full p-2 border rounded" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Prénom</label>
+                            <input type="text" id="rega-prenom" class="w-full p-2 border rounded" required>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Email</label>
+                        <input type="email" id="rega-email" class="w-full p-2 border rounded" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Age</label>
+                            <input type="number" id="rega-age" class="w-full p-2 border rounded" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Téléphone</label>
+                            <input type="tel" id="rega-tel" class="w-full p-2 border rounded" required>
+                        </div>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Mot de passe</label>
+                        <input type="password" id="rega-password" class="w-full p-2 border rounded" required>
+                    </div>
+                    <button type="submit" class="w-full bg-purple-600 text-white font-bold py-3 rounded hover:bg-purple-700 transition">Créer le compte admin</button>
                 </form>
                 <div class="mt-4 text-center text-sm">
                     Déjà un compte ? <a href="#" onclick="window.app.nav('login')" class="text-blue-600 hover:underline">Se connecter</a>
@@ -253,44 +300,32 @@
         <!-- ADMIN: CODES D'INVITATION -->
         <section id="view-admin-invites" class="page-section">
             <h2 class="text-2xl font-bold mb-6">Codes d'invitation</h2>
-            <p class="text-gray-600 mb-6 max-w-2xl">Partagez l'un de ces liens à un membre du staff : le champ "Code d'invitation" de la page d'inscription sera automatiquement prérempli et lui attribuera le rôle correspondant dès son inscription.</p>
+            <p class="text-gray-600 mb-6 max-w-2xl">Choisissez le type de compte (et la catégorie si besoin) pour générer un lien d'inscription prêt à partager : les champs correspondants seront automatiquement préremplis pour la personne qui l'utilise.</p>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
-                            <i class="fa-solid fa-user-shield"></i>
-                        </div>
-                        <h3 class="font-bold text-lg">Lien Admin</h3>
-                    </div>
-                    <div class="flex gap-2">
-                        <input id="invite-link-admin" type="text" readonly class="flex-1 p-2 border rounded bg-gray-50 text-sm" value="Chargement...">
-                        <button id="invite-copy-admin" type="button" onclick="window.app.copyInviteLink('invite-link-admin')" class="bg-purple-600 text-white px-3 rounded hover:bg-purple-700 transition disabled:opacity-40 disabled:cursor-not-allowed" title="Copier">
-                            <i class="fa-solid fa-copy"></i>
-                        </button>
-                    </div>
+            <div class="bg-white p-6 rounded-xl shadow-md max-w-xl">
+                <div class="mb-4">
+                    <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Type de compte</label>
+                    <select id="invite-type" onchange="window.app.renderInviteBuilder()" class="w-full p-2 border rounded bg-white">
+                        <option value="joueur" selected>Joueur</option>
+                        <option value="coach">Coach</option>
+                        <option value="admin">Admin</option>
+                    </select>
                 </div>
 
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                            <i class="fa-solid fa-whistle"></i>
-                        </div>
-                        <h3 class="font-bold text-lg">Lien Coach</h3>
-                    </div>
-                    <div class="flex gap-2">
-                        <input id="invite-link-coach" type="text" readonly class="flex-1 p-2 border rounded bg-gray-50 text-sm" value="Chargement...">
-                        <button id="invite-copy-coach" type="button" onclick="window.app.copyInviteLink('invite-link-coach')" class="bg-blue-600 text-white px-3 rounded hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed" title="Copier">
-                            <i class="fa-solid fa-copy"></i>
-                        </button>
-                    </div>
+                <div id="invite-category-wrap" class="mb-4">
+                    <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Catégorie</label>
+                    <select id="invite-category" onchange="window.app.renderInviteBuilder()" class="w-full p-2 border rounded bg-white">
+                        <!-- Rempli dynamiquement -->
+                    </select>
                 </div>
-            </div>
 
-            <h3 class="text-lg font-bold mt-10 mb-2">Liens par catégorie</h3>
-            <p class="text-gray-600 mb-6 max-w-2xl">Ces liens préremplissent la catégorie du joueur au lieu du rôle. Gérez la liste des catégories depuis la page "Catégories".</p>
-            <div id="invite-links-categories" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Rempli dynamiquement par window.app.renderInviteCategoryLinks() -->
+                <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Lien généré</label>
+                <div class="flex gap-2">
+                    <input id="invite-generated-url" type="text" readonly class="flex-1 p-2 border rounded bg-gray-50 text-sm" value="Chargement...">
+                    <button id="invite-copy-generated" type="button" onclick="window.app.copyInviteLink('invite-generated-url')" class="bg-blue-600 text-white px-3 rounded hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed" title="Copier">
+                        <i class="fa-solid fa-copy"></i>
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -484,6 +519,6 @@
     </footer>
 
     <!-- Chargement des scripts -->
-    <script src="js/script.js?v=11"></script>
+    <script src="js/script.js?v=12"></script>
 </body>
 </html>

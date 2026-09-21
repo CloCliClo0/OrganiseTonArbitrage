@@ -154,9 +154,13 @@ class App {
         // les catégories sont chargées, car le <select> est rempli dynamiquement (async)
         this.pendingCategory = urlParams.get('cat') || null;
 
-        // ?code=... ou ?cat=... : on est arrivé via un lien d'invitation, direction
-        // la page d'inscription plutôt que la page de connexion par défaut
-        this.hasInviteLink = !!(code || this.pendingCategory);
+        // Lien d'invitation admin dédié (?admin_code=...) : la page d'inscription admin
+        // n'affiche pas de champ code visible, on le garde juste en mémoire pour l'envoi
+        this.pendingAdminCode = urlParams.get('admin_code') || null;
+
+        // ?code=... / ?cat=... / ?admin_code=... : on est arrivé via un lien d'invitation,
+        // direction la page d'inscription plutôt que la page de connexion par défaut
+        this.hasInviteLink = !!(code || this.pendingCategory || this.pendingAdminCode);
     }
 
     // Remplit dynamiquement le <select> "Catégorie" du formulaire d'inscription
@@ -238,7 +242,10 @@ class App {
             this.nav('home');
         } else {
             currentUser = null;
-            this.nav(this.hasInviteLink ? 'register' : 'login');
+            let landing = 'login';
+            if (this.pendingAdminCode) landing = 'register-admin';
+            else if (this.hasInviteLink) landing = 'register';
+            this.nav(landing);
         }
         showLoading(false);
         this.buildNav();
@@ -318,6 +325,34 @@ class App {
         if (res && res.success) {
             // Le compte doit être validé par email avant de pouvoir se connecter
             notify(res.message || 'Compte créé ! Vérifiez votre boîte mail pour valider votre adresse.', 'success');
+            document.getElementById('login-email').value = data.email;
+            this.nav('login');
+        } else {
+            notify(res ? res.message : "Erreur inscription", "error");
+        }
+    }
+
+    // Formulaire dédié, accessible uniquement via un lien ?admin_code=... : pas de champ
+    // catégorie (non pertinent pour un admin), le code est porté par l'URL, pas saisi.
+    async handleRegisterAdmin(e) {
+        e.preventDefault();
+
+        const data = {
+            nom: document.getElementById('rega-nom').value,
+            prenom: document.getElementById('rega-prenom').value,
+            email: document.getElementById('rega-email').value,
+            age: document.getElementById('rega-age').value,
+            tel: document.getElementById('rega-tel').value,
+            password: document.getElementById('rega-password').value,
+            code: this.pendingAdminCode || '',
+        };
+
+        showLoading(true);
+        const res = await apiCall('auth.php?action=register', 'POST', data);
+        showLoading(false);
+
+        if (res && res.success) {
+            notify(res.message || 'Compte admin créé ! Vérifiez votre boîte mail pour valider votre adresse.', 'success');
             document.getElementById('login-email').value = data.email;
             this.nav('login');
         } else {
@@ -479,67 +514,79 @@ class App {
         }
     }
 
-    // Page admin "Codes d'invitation" : construit les liens ?code=... à partir des codes fixes du .env
+    // Page admin "Codes d'invitation" : récupère les codes fixes une fois, puis délègue
+    // la construction de l'URL au constructeur de lien (type de compte + catégorie)
     async renderAdminInvites() {
-        const adminInput = document.getElementById('invite-link-admin');
-        const coachInput = document.getElementById('invite-link-coach');
-        if (!adminInput || !coachInput) return;
+        const urlInput = document.getElementById('invite-generated-url');
+        if (!urlInput) return;
 
-        adminInput.value = 'Chargement...';
-        coachInput.value = 'Chargement...';
-
+        urlInput.value = 'Chargement...';
         const res = await apiCall('auth.php?action=invite-codes');
+        this.inviteCodes = (res && res.success) ? res : null;
         if (!res || !res.success) {
-            adminInput.value = '';
-            coachInput.value = '';
             notify(res ? res.message : 'Erreur récupération des codes', 'error');
+        }
+
+        this.renderInviteCategoryOptions();
+        this.renderInviteBuilder();
+    }
+
+    // Remplit le <select> catégorie du constructeur de lien
+    renderInviteCategoryOptions() {
+        const select = document.getElementById('invite-category');
+        if (!select) return;
+        select.innerHTML = (categories && categories.length)
+            ? categories.map(c => `<option value="${c}">${c}</option>`).join('')
+            : '<option value="">Aucune catégorie</option>';
+    }
+
+    // Recalcule l'URL générée à partir du type de compte (+ catégorie) sélectionnés :
+    // admin -> ?admin_code=... (page d'inscription admin dédiée, pas de catégorie)
+    // coach -> ?code=...&cat=...   joueur -> ?cat=...
+    renderInviteBuilder() {
+        const type = document.getElementById('invite-type');
+        const catWrap = document.getElementById('invite-category-wrap');
+        const catSelect = document.getElementById('invite-category');
+        if (!type) return;
+
+        const isAdmin = type.value === 'admin';
+        if (catWrap) catWrap.classList.toggle('hidden', isAdmin);
+
+        if (!this.inviteCodes) {
+            this.setGeneratedUrl(null, 'Impossible de récupérer les codes du serveur');
             return;
         }
 
         const base = `${location.origin}${location.pathname}`;
-        this.setInviteLink('invite-link-admin', res.codeAdmin ? `${base}?code=${encodeURIComponent(res.codeAdmin)}` : null, 'CODE_ADMIN');
-        this.setInviteLink('invite-link-coach', res.codeCoach ? `${base}?code=${encodeURIComponent(res.codeCoach)}` : null, 'CODE_COACH');
+        const params = new URLSearchParams();
 
-        this.renderInviteCategoryLinks();
-    }
-
-    // Liens par catégorie (?cat=...), affichés dans la page "Codes d'invitation"
-    renderInviteCategoryLinks() {
-        const container = document.getElementById('invite-links-categories');
-        if (!container) return;
-
-        if (!categories || categories.length === 0) {
-            container.innerHTML = '<p class="text-gray-500 italic col-span-full">Aucune catégorie pour le moment. Ajoutez-en depuis la page "Catégories".</p>';
-            return;
+        if (type.value === 'admin') {
+            if (!this.inviteCodes.codeAdmin) {
+                this.setGeneratedUrl(null, 'CODE_ADMIN non configuré dans le .env du serveur');
+                return;
+            }
+            params.set('admin_code', this.inviteCodes.codeAdmin);
+        } else {
+            if (type.value === 'coach') {
+                if (!this.inviteCodes.codeCoach) {
+                    this.setGeneratedUrl(null, 'CODE_COACH non configuré dans le .env du serveur');
+                    return;
+                }
+                params.set('code', this.inviteCodes.codeCoach);
+            }
+            const cat = catSelect ? catSelect.value : '';
+            if (cat) params.set('cat', cat);
         }
 
-        const base = `${location.origin}${location.pathname}`;
-        container.innerHTML = categories.map((cat, i) => {
-            const url = `${base}?cat=${encodeURIComponent(cat)}`;
-            const inputId = `invite-link-cat-${i}`;
-            return `
-            <div class="bg-white p-6 rounded-xl shadow-md">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
-                        <i class="fa-solid fa-tag"></i>
-                    </div>
-                    <h3 class="font-bold text-lg">${cat}</h3>
-                </div>
-                <div class="flex gap-2">
-                    <input id="${inputId}" type="text" readonly class="flex-1 p-2 border rounded bg-gray-50 text-sm" value="${url}">
-                    <button type="button" onclick="window.app.copyInviteLink('${inputId}')" class="bg-green-600 text-white px-3 rounded hover:bg-green-700 transition" title="Copier">
-                        <i class="fa-solid fa-copy"></i>
-                    </button>
-                </div>
-            </div>`;
-        }).join('');
+        const query = params.toString();
+        this.setGeneratedUrl(query ? `${base}?${query}` : base);
     }
 
-    // Met à jour un champ lien + désactive son bouton copier si le code correspondant
-    // n'est pas configuré côté serveur (au lieu de laisser copier un texte inutile)
-    setInviteLink(inputId, url, envVarName) {
-        const input = document.getElementById(inputId);
-        const button = document.getElementById(inputId.replace('invite-link-', 'invite-copy-'));
+    // Met à jour le champ "Lien généré" + désactive le bouton copier en cas d'erreur
+    // (au lieu de laisser copier un texte inutile)
+    setGeneratedUrl(url, errorText) {
+        const input = document.getElementById('invite-generated-url');
+        const button = document.getElementById('invite-copy-generated');
         if (!input) return;
 
         if (url) {
@@ -547,7 +594,7 @@ class App {
             input.classList.remove('text-red-600', 'italic');
             if (button) { button.disabled = false; button.classList.remove('opacity-40', 'cursor-not-allowed'); }
         } else {
-            input.value = `Non configuré : ajoutez ${envVarName} dans le .env du serveur`;
+            input.value = errorText || 'Non configuré';
             input.classList.add('text-red-600', 'italic');
             if (button) { button.disabled = true; button.classList.add('opacity-40', 'cursor-not-allowed'); }
         }
