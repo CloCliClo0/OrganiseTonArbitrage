@@ -63,6 +63,9 @@ class App {
         this.checkUrlParams();
         this.fetchPublicData(); // samedis + catégories : nécessaires même sans être connecté (formulaire d'inscription)
         this.initAuth();
+
+        const footerYear = document.getElementById('footer-year');
+        if (footerYear) footerYear.textContent = new Date().getFullYear();
     }
 
     // Construit la grille de samedis (regroupés par mois) à partir de sessionDates,
