@@ -8,8 +8,12 @@ router.get('/', async (req, res) => {
         return res.status(404).end();
     }
 
-    const keys = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS', 'SUPER_ADMIN_EMAIL', 'CODE_ADMIN', 'CODE_COACH', 'SMTP_HOST'];
-    const out = { ok: true, env: {}, session: null, counts: {} };
+    const keys = [
+        'DB_HOST', 'DB_TEST_NAME', 'DB_TEST_USER', 'DB_TEST_PASS',
+        'DB_PROD_NAME', 'DB_PROD_USER', 'DB_PROD_PASS',
+        'SUPER_ADMIN_EMAIL', 'CODE_ADMIN', 'CODE_COACH', 'SMTP_HOST',
+    ];
+    const out = { ok: true, env: {}, session: null, counts: {}, dbTarget: process.env.APP_ENV === 'production' ? 'prod' : 'test' };
     keys.forEach(k => { out.env[k] = !!process.env[k]; });
     out.session = { id: req.auth.id, role: req.auth.role };
 

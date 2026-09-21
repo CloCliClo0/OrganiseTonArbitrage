@@ -1,10 +1,16 @@
 const mysql = require('mysql2/promise');
 
+// En production on se connecte à DB_PROD_*, sinon (dev/test) à DB_TEST_*
+const isProd = process.env.APP_ENV === 'production';
+const dbUser = isProd ? process.env.DB_PROD_USER : process.env.DB_TEST_USER;
+const dbPass = isProd ? process.env.DB_PROD_PASS : process.env.DB_TEST_PASS;
+const dbName = isProd ? process.env.DB_PROD_NAME : process.env.DB_TEST_NAME;
+
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || '',
-    password: process.env.DB_PASS || '',
-    database: process.env.DB_NAME || '',
+    user: dbUser || '',
+    password: dbPass || '',
+    database: dbName || '',
     waitForConnections: true,
     connectionLimit: 5,
     queueLimit: 0,
