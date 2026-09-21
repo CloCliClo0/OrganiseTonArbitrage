@@ -262,7 +262,7 @@
                     </div>
                     <div class="flex gap-2">
                         <input id="invite-link-admin" type="text" readonly class="flex-1 p-2 border rounded bg-gray-50 text-sm" value="Chargement...">
-                        <button type="button" onclick="window.app.copyInviteLink('invite-link-admin')" class="bg-purple-600 text-white px-3 rounded hover:bg-purple-700 transition" title="Copier">
+                        <button id="invite-copy-admin" type="button" onclick="window.app.copyInviteLink('invite-link-admin')" class="bg-purple-600 text-white px-3 rounded hover:bg-purple-700 transition disabled:opacity-40 disabled:cursor-not-allowed" title="Copier">
                             <i class="fa-solid fa-copy"></i>
                         </button>
                     </div>
@@ -277,11 +277,17 @@
                     </div>
                     <div class="flex gap-2">
                         <input id="invite-link-coach" type="text" readonly class="flex-1 p-2 border rounded bg-gray-50 text-sm" value="Chargement...">
-                        <button type="button" onclick="window.app.copyInviteLink('invite-link-coach')" class="bg-blue-600 text-white px-3 rounded hover:bg-blue-700 transition" title="Copier">
+                        <button id="invite-copy-coach" type="button" onclick="window.app.copyInviteLink('invite-link-coach')" class="bg-blue-600 text-white px-3 rounded hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed" title="Copier">
                             <i class="fa-solid fa-copy"></i>
                         </button>
                     </div>
                 </div>
+            </div>
+
+            <h3 class="text-lg font-bold mt-10 mb-2">Liens par catégorie</h3>
+            <p class="text-gray-600 mb-6 max-w-2xl">Ces liens préremplissent la catégorie du joueur au lieu du rôle. Gérez la liste des catégories depuis la page "Catégories".</p>
+            <div id="invite-links-categories" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Rempli dynamiquement par window.app.renderInviteCategoryLinks() -->
             </div>
         </section>
 
@@ -345,6 +351,6 @@
     </main>
 
     <!-- Chargement des scripts -->
-    <script src="js/script.js?v=5"></script>
+    <script src="js/script.js?v=7"></script>
 </body>
 </html>

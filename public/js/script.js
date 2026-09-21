@@ -477,8 +477,60 @@ class App {
         }
 
         const base = `${location.origin}${location.pathname}`;
-        adminInput.value = res.codeAdmin ? `${base}?code=${encodeURIComponent(res.codeAdmin)}` : 'Aucun code CODE_ADMIN configuré';
-        coachInput.value = res.codeCoach ? `${base}?code=${encodeURIComponent(res.codeCoach)}` : 'Aucun code CODE_COACH configuré';
+        this.setInviteLink('invite-link-admin', res.codeAdmin ? `${base}?code=${encodeURIComponent(res.codeAdmin)}` : null, 'CODE_ADMIN');
+        this.setInviteLink('invite-link-coach', res.codeCoach ? `${base}?code=${encodeURIComponent(res.codeCoach)}` : null, 'CODE_COACH');
+
+        this.renderInviteCategoryLinks();
+    }
+
+    // Liens par catégorie (?cat=...), affichés dans la page "Codes d'invitation"
+    renderInviteCategoryLinks() {
+        const container = document.getElementById('invite-links-categories');
+        if (!container) return;
+
+        if (!categories || categories.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 italic col-span-full">Aucune catégorie pour le moment. Ajoutez-en depuis la page "Catégories".</p>';
+            return;
+        }
+
+        const base = `${location.origin}${location.pathname}`;
+        container.innerHTML = categories.map((cat, i) => {
+            const url = `${base}?cat=${encodeURIComponent(cat)}`;
+            const inputId = `invite-link-cat-${i}`;
+            return `
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                        <i class="fa-solid fa-tag"></i>
+                    </div>
+                    <h3 class="font-bold text-lg">${cat}</h3>
+                </div>
+                <div class="flex gap-2">
+                    <input id="${inputId}" type="text" readonly class="flex-1 p-2 border rounded bg-gray-50 text-sm" value="${url}">
+                    <button type="button" onclick="window.app.copyInviteLink('${inputId}')" class="bg-green-600 text-white px-3 rounded hover:bg-green-700 transition" title="Copier">
+                        <i class="fa-solid fa-copy"></i>
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // Met à jour un champ lien + désactive son bouton copier si le code correspondant
+    // n'est pas configuré côté serveur (au lieu de laisser copier un texte inutile)
+    setInviteLink(inputId, url, envVarName) {
+        const input = document.getElementById(inputId);
+        const button = document.getElementById(inputId.replace('invite-link-', 'invite-copy-'));
+        if (!input) return;
+
+        if (url) {
+            input.value = url;
+            input.classList.remove('text-red-600', 'italic');
+            if (button) { button.disabled = false; button.classList.remove('opacity-40', 'cursor-not-allowed'); }
+        } else {
+            input.value = `Non configuré : ajoutez ${envVarName} dans le .env du serveur`;
+            input.classList.add('text-red-600', 'italic');
+            if (button) { button.disabled = true; button.classList.add('opacity-40', 'cursor-not-allowed'); }
+        }
     }
 
     copyInviteLink(inputId) {
@@ -488,11 +540,38 @@ class App {
 
     copyText(text) {
         if (!text) return;
-        navigator.clipboard.writeText(text).then(() => {
-            notify('Lien copié', 'success');
-        }).catch(() => {
-            notify('Copie automatique impossible, sélectionnez le texte manuellement', 'error');
-        });
+        const onOk = () => notify('Lien copié', 'success');
+        const onFail = () => notify('Copie automatique impossible, sélectionnez le texte manuellement', 'error');
+
+        // navigator.clipboard n'existe que dans un contexte sécurisé (HTTPS/localhost) :
+        // en HTTP simple, il est undefined et l'appel planterait silencieusement sans repli.
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(onOk).catch(() => {
+                if (!this.legacyCopy(text)) onFail();
+            });
+        } else if (this.legacyCopy(text)) {
+            onOk();
+        } else {
+            onFail();
+        }
+    }
+
+    // Repli pour les navigateurs/contextes sans Clipboard API (ex: site servi en HTTP)
+    legacyCopy(text) {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            return ok;
+        } catch (e) {
+            return false;
+        }
     }
 
     // Page admin "Catégories" : liste + lien d'inscription (?cat=...) à copier pour chacune
