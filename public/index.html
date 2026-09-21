@@ -106,7 +106,6 @@
                         <select id="reg-cat" class="w-full p-2 border rounded bg-white">
                             <option value="Senior">Senior</option>
                             <option value="Veteran">Vétéran</option>
-                            <option value="U18">U18</option>
                         </select>
                     </div>
 
@@ -149,38 +148,31 @@
 
         <!-- INSCRIPTION -->
         <section id="view-inscription" class="page-section">
-            <div class="max-w-lg mx-auto bg-white p-8 rounded-xl shadow-md mt-5">
-                <h2 class="text-2xl font-bold text-center text-blue-900 mb-6">Inscription aux samedis</h2>
+            <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md mt-5">
+                <div class="flex items-center justify-center gap-3 mb-6">
+                    <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-blue-900">Inscription aux samedis</h2>
+                </div>
                 <form onsubmit="window.app.handleInscription(event)">
-                    <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Sélection des samedis (1 ou 2 maximum)</label>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded p-2">
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-01-24"> Samedi 24 janvier 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-01-31"> Samedi 31 janvier 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-02-07"> Samedi 7 février 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-02-14"> Samedi 14 février 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-02-21"> Samedi 21 février 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-02-28"> Samedi 28 février 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-03-07"> Samedi 7 mars 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-03-14"> Samedi 14 mars 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-03-21"> Samedi 21 mars 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-03-28"> Samedi 28 mars 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-04-04"> Samedi 4 avril 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-04-11"> Samedi 11 avril 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-04-18"> Samedi 18 avril 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-04-25"> Samedi 25 avril 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-05-02"> Samedi 2 mai 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-05-09"> Samedi 9 mai 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-05-16"> Samedi 16 mai 2026</label>
-                            <label class="flex items-center"><input type="checkbox" class="mr-2" value="2026-05-23"> Samedi 23 mai 2026</label>
+                    <div class="mb-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-xs font-bold uppercase text-gray-600">Choisissez vos samedis</label>
+                            <span id="insc-counter" class="text-xs font-bold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 transition-colors">0 / 2 sélectionné</span>
                         </div>
-                        <p class="text-xs text-gray-500 mt-1">Sélectionnez 1 ou 2 samedis maximum.</p>
+                        <div id="insc-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                            <!-- Rempli dynamiquement par window.app.renderInscriptionForm() à partir de sessionDates -->
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1.5"><i class="fa-solid fa-circle-info mr-1"></i>Sélectionnez 1 ou 2 samedis maximum.</p>
                     </div>
-                    <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Commentaire (facultatif)</label>
-                        <textarea id="insc-commentaire" class="w-full p-2 border rounded" rows="3" placeholder="Commentaire optionnel"></textarea>
+                    <div class="mb-5">
+                        <label class="block text-xs font-bold uppercase text-gray-600 mb-1" for="insc-commentaire">Commentaire (facultatif)</label>
+                        <textarea id="insc-commentaire" class="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" rows="3" placeholder="Commentaire optionnel"></textarea>
                     </div>
-                    <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition">S'inscrire</button>
+                    <button id="insc-submit" type="submit" disabled class="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600">
+                        <i class="fa-solid fa-paper-plane"></i>S'inscrire
+                    </button>
                 </form>
             </div>
         </section>
@@ -240,10 +232,56 @@
         <!-- ADMIN: INSCRIPTIONS -->
         <section id="view-admin-matches" class="page-section">
             <h2 class="text-2xl font-bold mb-6">Gestion des Inscriptions (Admin/Coach)</h2>
+
+            <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h3 class="text-lg font-semibold mb-4">Gérer les samedis</h3>
+                <div id="admin-dates-manage">
+                    <!-- Rempli dynamiquement par window.app.renderSessionDatesAdmin() -->
+                </div>
+            </div>
+
             <div class="bg-white p-6 rounded-xl shadow-md">
                 <h3 class="text-lg font-semibold mb-4">Inscriptions par samedi</h3>
                 <div id="admin-inscriptions-list" class="space-y-6">
                     <!-- Dynamically filled -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ADMIN: CODES D'INVITATION -->
+        <section id="view-admin-invites" class="page-section">
+            <h2 class="text-2xl font-bold mb-6">Codes d'invitation</h2>
+            <p class="text-gray-600 mb-6 max-w-2xl">Partagez l'un de ces liens à un membre du staff : le champ "Code d'invitation" de la page d'inscription sera automatiquement prérempli et lui attribuera le rôle correspondant dès son inscription.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+                        <h3 class="font-bold text-lg">Lien Admin</h3>
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="invite-link-admin" type="text" readonly class="flex-1 p-2 border rounded bg-gray-50 text-sm" value="Chargement...">
+                        <button type="button" onclick="window.app.copyInviteLink('invite-link-admin')" class="bg-purple-600 text-white px-3 rounded hover:bg-purple-700 transition" title="Copier">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                            <i class="fa-solid fa-whistle"></i>
+                        </div>
+                        <h3 class="font-bold text-lg">Lien Coach</h3>
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="invite-link-coach" type="text" readonly class="flex-1 p-2 border rounded bg-gray-50 text-sm" value="Chargement...">
+                        <button type="button" onclick="window.app.copyInviteLink('invite-link-coach')" class="bg-blue-600 text-white px-3 rounded hover:bg-blue-700 transition" title="Copier">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>

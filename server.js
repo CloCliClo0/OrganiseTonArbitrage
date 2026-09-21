@@ -31,6 +31,7 @@ try {
     app.use('/api/auth.php', require('./routes/auth'));
     app.use('/api/bookings.php', require('./routes/bookings'));
     app.use('/api/matches.php', require('./routes/matches'));
+    app.use('/api/dates.php', require('./routes/dates'));
     app.use('/api/debug.php', require('./routes/debug'));
 
     // --- Health check (indépendant du reste, ne doit jamais planter) ---

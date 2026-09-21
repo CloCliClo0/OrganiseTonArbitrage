@@ -68,6 +68,18 @@ router.all('/', async (req, res) => {
             return res.json({ success: true });
         }
 
+        // --- CODES D'INVITATION (admin) ---
+        if (req.method === 'GET' && action === 'invite-codes') {
+            if (!req.auth || req.auth.role !== 'admin') {
+                return res.status(403).json({ success: false, message: 'Non autorisé' });
+            }
+            return res.json({
+                success: true,
+                codeAdmin: process.env.CODE_ADMIN || '',
+                codeCoach: process.env.CODE_COACH || '',
+            });
+        }
+
         // --- ME ---
         if (req.method === 'GET' && action === 'me') {
             if (!req.auth) {

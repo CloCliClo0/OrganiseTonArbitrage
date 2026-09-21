@@ -8,12 +8,8 @@ let allPresences = [];
 // Constantes Rôles pour l'affichage
 const ROLES = { ADMIN: 'admin', COACH: 'coach', JOUEUR: 'joueur' };
 
-// Samedis 2026
-const SATURDAYS_2026 = [
-    '2026-01-24', '2026-01-31', '2026-02-07', '2026-02-14', '2026-02-21', '2026-02-28',
-    '2026-03-07', '2026-03-14', '2026-03-21', '2026-03-28', '2026-04-04', '2026-04-11',
-    '2026-04-18', '2026-04-25', '2026-05-02', '2026-05-09', '2026-05-16', '2026-05-23'
-];
+// Jours ouverts à l'inscription (chargés depuis /api/dates.php, gérés par l'admin)
+let sessionDates = [];
 
 // --- UTILITAIRES ---
 const showLoading = (show) => document.getElementById('loading').classList.toggle('hidden', !show);
@@ -65,6 +61,57 @@ class App {
         this.checkUrlParams();
     }
 
+    // Construit la grille de samedis (regroupés par mois) à partir de sessionDates,
+    // + compteur live et limite de 2 max (désactive les autres cases une fois 2 cochées)
+    renderInscriptionForm() {
+        const grid = document.getElementById('insc-grid');
+        const counter = document.getElementById('insc-counter');
+        const submitBtn = document.getElementById('insc-submit');
+        if (!grid || !counter || !submitBtn) return;
+
+        if (!sessionDates || sessionDates.length === 0) {
+            grid.innerHTML = '<p class="col-span-full text-sm text-gray-500 italic">Aucun jour ouvert à l\'inscription pour le moment.</p>';
+            counter.textContent = '0 / 2 sélectionné';
+            submitBtn.disabled = true;
+            return;
+        }
+
+        const chipClass = 'insc-chip flex items-center justify-center text-center rounded-lg border border-gray-200 px-2 py-2.5 text-sm font-medium text-gray-700 cursor-pointer select-none transition-colors hover:border-blue-400 hover:bg-blue-50 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-600 has-[:checked]:text-white has-[:checked]:shadow-md has-[:disabled]:opacity-40 has-[:disabled]:cursor-not-allowed has-[:disabled]:hover:border-gray-200 has-[:disabled]:hover:bg-transparent';
+
+        let lastMonthKey = '';
+        let html = '';
+        sessionDates.forEach(date => {
+            const d = new Date(`${date}T00:00:00`);
+            const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+            if (monthKey !== lastMonthKey) {
+                let monthLabel = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+                monthLabel = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+                html += `<p class="col-span-full text-xs font-bold text-blue-900 uppercase tracking-wide${lastMonthKey ? ' mt-2' : ''}">${monthLabel}</p>`;
+                lastMonthKey = monthKey;
+            }
+            const dayLabel = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+            html += `<label class="${chipClass}"><input type="checkbox" class="sr-only" value="${date}">${dayLabel}</label>`;
+        });
+        grid.innerHTML = html;
+
+        const update = () => {
+            const checkboxes = Array.from(grid.querySelectorAll('input[type="checkbox"]'));
+            const checkedCount = checkboxes.filter(cb => cb.checked).length;
+            counter.textContent = `${checkedCount} / 2 sélectionné${checkedCount > 1 ? 's' : ''}`;
+            counter.classList.toggle('bg-gray-100', checkedCount === 0);
+            counter.classList.toggle('text-gray-500', checkedCount === 0);
+            counter.classList.toggle('bg-blue-100', checkedCount > 0);
+            counter.classList.toggle('text-blue-700', checkedCount > 0);
+
+            checkboxes.forEach(cb => { cb.disabled = checkedCount >= 2 && !cb.checked; });
+            submitBtn.disabled = checkedCount === 0;
+        };
+
+        // onchange (et non addEventListener) : évite d'empiler des handlers à chaque re-rendu de la vue
+        grid.onchange = update;
+        update();
+    }
+
     checkUrlParams() {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
@@ -82,8 +129,10 @@ class App {
         if(viewId === 'calendar') this.renderCalendar();
         if(viewId === 'home') this.renderHome();
         if(viewId === 'profile') this.renderProfile();
+        if(viewId === 'inscription') this.renderInscriptionForm();
         if(viewId === 'admin-matches') this.renderAdminInscriptions();
         if(viewId === 'admin-users' || viewId === 'admin-stats') this.renderAdminStats();
+        if(viewId === 'admin-invites') this.renderAdminInvites();
 
         document.getElementById('mobile-menu').classList.add('hidden');
     }
@@ -108,6 +157,9 @@ class App {
 
             if (currentUser && (currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.COACH)) {
                 links.push({ id: 'admin-matches', label: 'Gestion Inscriptions', icon: 'fa-edit' });
+            }
+            if (currentUser && currentUser.role === ROLES.ADMIN) {
+                links.push({ id: 'admin-invites', label: 'Codes invitation', icon: 'fa-key' });
             }
         }
 
@@ -137,8 +189,11 @@ class App {
     }
 
     async fetchData() {
-        const presences = await apiCall('bookings.php?action=presences');
-        
+        const [presences, dates] = await Promise.all([
+            apiCall('bookings.php?action=presences'),
+            apiCall('dates.php'),
+        ]);
+
         // presences: ensure array; if API returned error object, show notification and fallback to []
         if (Array.isArray(presences)) {
             allPresences = presences;
@@ -149,6 +204,8 @@ class App {
         } else {
             allPresences = [];
         }
+
+        sessionDates = Array.isArray(dates) ? dates : [];
     }
 
     async handleLogin(e) {
@@ -248,6 +305,8 @@ class App {
     }
 
     async renderAdminInscriptions() {
+        this.renderSessionDatesAdmin();
+
         const container = document.getElementById('admin-inscriptions-list');
         container.innerHTML = '<p class="text-gray-500">Chargement...</p>';
 
@@ -265,7 +324,7 @@ class App {
         });
 
         let html = '';
-        SATURDAYS_2026.forEach(date => {
+        sessionDates.forEach(date => {
             const presences = grouped[date] || [];
             html += `<div class="bg-white p-4 rounded-lg border border-gray-200">
                 <h4 class="font-bold text-lg mb-2">${formatDate(date)}</h4>`;
@@ -278,7 +337,7 @@ class App {
                         <span>${p.nom} ${p.prenom}</span>
                         <div>
                             <select class="mr-2 p-1 border rounded" data-presence-id="${p.id}">`;
-                    SATURDAYS_2026.forEach(d => {
+                    sessionDates.forEach(d => {
                         html += `<option value="${d}" ${d === p.date ? 'selected' : ''}>${formatDate(d)}</option>`;
                     });
                     html += `</select>
@@ -293,6 +352,106 @@ class App {
         });
 
         container.innerHTML = html;
+    }
+
+    // Carte "Gérer les samedis" (liste + ajout/suppression, admin uniquement pour les actions)
+    renderSessionDatesAdmin() {
+        const container = document.getElementById('admin-dates-manage');
+        if (!container) return;
+        const isAdmin = currentUser && currentUser.role === ROLES.ADMIN;
+
+        const badges = (sessionDates || []).map(date => `
+            <span class="inline-flex items-center gap-2 bg-blue-50 text-blue-800 text-xs font-medium px-3 py-1.5 rounded-full border border-blue-100">
+                ${formatDate(date)}
+                ${isAdmin ? `<button type="button" onclick="window.app.deleteSessionDate('${date}')" class="text-blue-400 hover:text-red-600" title="Supprimer"><i class="fa-solid fa-xmark"></i></button>` : ''}
+            </span>
+        `).join('');
+
+        container.innerHTML = `
+            <div class="flex flex-wrap gap-2 mb-4">${badges || '<p class="text-sm text-gray-500 italic">Aucun jour ouvert à l\'inscription.</p>'}</div>
+            ${isAdmin ? `
+            <div class="flex flex-wrap items-end gap-2">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Ajouter un jour</label>
+                    <input type="date" id="new-session-date" class="p-2 border rounded">
+                </div>
+                <button type="button" onclick="window.app.addSessionDate()" class="bg-blue-600 text-white font-bold px-4 py-2 rounded hover:bg-blue-700 transition">
+                    <i class="fa-solid fa-plus mr-1"></i>Ajouter
+                </button>
+            </div>` : ''}
+        `;
+    }
+
+    async addSessionDate() {
+        const input = document.getElementById('new-session-date');
+        const date = input ? input.value : '';
+        if (!date) { notify('Choisissez une date', 'error'); return; }
+
+        showLoading(true);
+        const res = await apiCall('dates.php', 'POST', { date });
+        showLoading(false);
+
+        if (res && res.success) {
+            notify('Jour ajouté', 'success');
+            input.value = '';
+            await this.fetchData();
+            this.renderAdminInscriptions();
+            this.renderCalendar();
+        } else {
+            notify(res ? res.message : 'Erreur', 'error');
+        }
+    }
+
+    deleteSessionDate(date) {
+        if (!confirm(`Supprimer le ${formatDate(date)} de la liste des jours d'inscription ?`)) return;
+        this.deleteSessionDateConfirmed(date);
+    }
+
+    async deleteSessionDateConfirmed(date) {
+        showLoading(true);
+        const res = await apiCall(`dates.php?date=${encodeURIComponent(date)}`, 'DELETE');
+        showLoading(false);
+
+        if (res && res.success) {
+            notify('Jour supprimé', 'success');
+            await this.fetchData();
+            this.renderAdminInscriptions();
+            this.renderCalendar();
+        } else {
+            notify(res ? res.message : 'Erreur', 'error');
+        }
+    }
+
+    // Page admin "Codes d'invitation" : construit les liens ?code=... à partir des codes fixes du .env
+    async renderAdminInvites() {
+        const adminInput = document.getElementById('invite-link-admin');
+        const coachInput = document.getElementById('invite-link-coach');
+        if (!adminInput || !coachInput) return;
+
+        adminInput.value = 'Chargement...';
+        coachInput.value = 'Chargement...';
+
+        const res = await apiCall('auth.php?action=invite-codes');
+        if (!res || !res.success) {
+            adminInput.value = '';
+            coachInput.value = '';
+            notify(res ? res.message : 'Erreur récupération des codes', 'error');
+            return;
+        }
+
+        const base = `${location.origin}${location.pathname}`;
+        adminInput.value = res.codeAdmin ? `${base}?code=${encodeURIComponent(res.codeAdmin)}` : 'Aucun code CODE_ADMIN configuré';
+        coachInput.value = res.codeCoach ? `${base}?code=${encodeURIComponent(res.codeCoach)}` : 'Aucun code CODE_COACH configuré';
+    }
+
+    copyInviteLink(inputId) {
+        const input = document.getElementById(inputId);
+        if (!input || !input.value) return;
+        navigator.clipboard.writeText(input.value).then(() => {
+            notify('Lien copié', 'success');
+        }).catch(() => {
+            notify('Copie automatique impossible, sélectionnez le texte manuellement', 'error');
+        });
     }
 
     refreshCurrentView() {
@@ -330,7 +489,7 @@ class App {
         const tbody = document.getElementById('calendar-body');
         let html = '';
 
-        SATURDAYS_2026.forEach(date => {
+        sessionDates.forEach(date => {
             const presencesForDate = allPresences.filter(p => p.date === date);
             const isAdmin = currentUser && (currentUser.role === ROLES.ADMIN || currentUser.role === ROLES.COACH);
 
@@ -349,7 +508,7 @@ class App {
 
             if (isAdmin) {
                 presencesForDate.forEach(p => {
-                    const selectOptions = SATURDAYS_2026.map(d => `<option value="${d}" ${d === p.date ? 'selected' : ''}>${formatDate(d)}</option>`).join('');
+                    const selectOptions = sessionDates.map(d => `<option value="${d}" ${d === p.date ? 'selected' : ''}>${formatDate(d)}</option>`).join('');
                     html += `<div class="mb-2">
                         <span class="text-sm">${p.nom} ${p.prenom}:</span>
                         <select class="mr-2 p-1 border rounded" data-presence-id="${p.id}">${selectOptions}</select>

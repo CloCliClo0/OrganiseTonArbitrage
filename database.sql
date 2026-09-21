@@ -48,6 +48,19 @@ CREATE TABLE IF NOT EXISTS `presences` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
+-- Table : session_dates
+-- Samedis (ou autres jours) ouverts à l'inscription pour l'arbitrage,
+-- gérés dynamiquement par l'admin (ajout/suppression)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `session_dates` (
+    `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `date`       DATE NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_session_dates_date` (`date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
 -- Table : matches
 -- Matchs du club (API legacy, conservée pour compatibilité)
 -- ---------------------------------------------------------------------
