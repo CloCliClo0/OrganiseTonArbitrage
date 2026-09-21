@@ -48,6 +48,19 @@ CREATE TABLE IF NOT EXISTS `presences` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
+-- Table : categories
+-- Catégories de joueurs (Senior, Vétéran, ...), gérées dynamiquement
+-- par l'admin. Utilisée par le formulaire d'inscription (users.categorie).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `categories` (
+    `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `name`       VARCHAR(100) NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_categories_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
 -- Table : session_dates
 -- Samedis (ou autres jours) ouverts à l'inscription pour l'arbitrage,
 -- gérés dynamiquement par l'admin (ajout/suppression)

@@ -104,8 +104,7 @@
                     <div class="mb-4">
                         <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Catégorie</label>
                         <select id="reg-cat" class="w-full p-2 border rounded bg-white">
-                            <option value="Senior">Senior</option>
-                            <option value="Veteran">Vétéran</option>
+                            <option value="">Chargement...</option>
                         </select>
                     </div>
 
@@ -286,6 +285,29 @@
             </div>
         </section>
 
+        <!-- ADMIN: CATEGORIES -->
+        <section id="view-admin-categories" class="page-section">
+            <h2 class="text-2xl font-bold mb-6">Gestion des catégories</h2>
+            <p class="text-gray-600 mb-6 max-w-2xl">Chaque catégorie a son propre lien d'inscription : le champ "Catégorie" du formulaire sera automatiquement prérempli pour la personne qui l'utilise.</p>
+
+            <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h3 class="text-lg font-semibold mb-4">Ajouter une catégorie</h3>
+                <div class="flex flex-wrap items-end gap-2">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Nom</label>
+                        <input type="text" id="new-category-name" class="p-2 border rounded" placeholder="Ex: U18">
+                    </div>
+                    <button type="button" onclick="window.app.addCategory()" class="bg-blue-600 text-white font-bold px-4 py-2 rounded hover:bg-blue-700 transition">
+                        <i class="fa-solid fa-plus mr-1"></i>Ajouter
+                    </button>
+                </div>
+            </div>
+
+            <div id="admin-categories-list" class="space-y-3">
+                <!-- Rempli dynamiquement par window.app.renderAdminCategories() -->
+            </div>
+        </section>
+
         <!-- ADMIN: STATS -->
         <section id="view-admin-stats" class="page-section">
             <div class="flex justify-between items-center mb-6">
@@ -323,6 +345,6 @@
     </main>
 
     <!-- Chargement des scripts -->
-    <script src="js/script.js?v=3"></script>
+    <script src="js/script.js?v=5"></script>
 </body>
 </html>

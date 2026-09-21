@@ -11,6 +11,9 @@ const ROLES = { ADMIN: 'admin', COACH: 'coach', JOUEUR: 'joueur' };
 // Jours ouverts à l'inscription (chargés depuis /api/dates.php, gérés par l'admin)
 let sessionDates = [];
 
+// Catégories de joueurs (chargées depuis /api/categories.php, gérées par l'admin)
+let categories = [];
+
 // --- UTILITAIRES ---
 const showLoading = (show) => document.getElementById('loading').classList.toggle('hidden', !show);
 
@@ -57,8 +60,9 @@ async function apiCall(endpoint, method = 'GET', body = null) {
 // --- CLASSE PRINCIPALE ---
 class App {
     constructor() {
-        this.initAuth();
         this.checkUrlParams();
+        this.fetchPublicData(); // samedis + catégories : nécessaires même sans être connecté (formulaire d'inscription)
+        this.initAuth();
     }
 
     // Construit la grille de samedis (regroupés par mois) à partir de sessionDates,
@@ -119,6 +123,24 @@ class App {
             const codeInput = document.getElementById('reg-code');
             if(codeInput) codeInput.value = code;
         }
+        // Catégorie préremplie via un lien d'invitation (?cat=...) ; appliquée dès que
+        // les catégories sont chargées, car le <select> est rempli dynamiquement (async)
+        this.pendingCategory = urlParams.get('cat') || null;
+    }
+
+    // Remplit dynamiquement le <select> "Catégorie" du formulaire d'inscription
+    renderRegisterCategories() {
+        const select = document.getElementById('reg-cat');
+        if (!select) return;
+
+        if (!categories || categories.length === 0) {
+            select.innerHTML = '<option value="">Aucune catégorie disponible</option>';
+            return;
+        }
+        select.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+        if (this.pendingCategory && categories.includes(this.pendingCategory)) {
+            select.value = this.pendingCategory;
+        }
     }
 
     nav(viewId) {
@@ -129,10 +151,12 @@ class App {
         if(viewId === 'calendar') this.renderCalendar();
         if(viewId === 'home') this.renderHome();
         if(viewId === 'profile') this.renderProfile();
+        if(viewId === 'register') this.renderRegisterCategories();
         if(viewId === 'inscription') this.renderInscriptionForm();
         if(viewId === 'admin-matches') this.renderAdminInscriptions();
         if(viewId === 'admin-users' || viewId === 'admin-stats') this.renderAdminStats();
         if(viewId === 'admin-invites') this.renderAdminInvites();
+        if(viewId === 'admin-categories') this.renderAdminCategories();
 
         document.getElementById('mobile-menu').classList.add('hidden');
     }
@@ -160,6 +184,7 @@ class App {
             }
             if (currentUser && currentUser.role === ROLES.ADMIN) {
                 links.push({ id: 'admin-invites', label: 'Codes invitation', icon: 'fa-key' });
+                links.push({ id: 'admin-categories', label: 'Catégories', icon: 'fa-tags' });
             }
         }
 
@@ -188,10 +213,22 @@ class App {
         this.buildNav();
     }
 
-    async fetchData() {
-        const [presences, dates] = await Promise.all([
-            apiCall('bookings.php?action=presences'),
+    // Données publiques (pas besoin d'être connecté) : samedis ouverts + catégories.
+    // Chargées dès le démarrage de l'app car le formulaire d'inscription (anonyme) en a besoin.
+    async fetchPublicData() {
+        const [dates, cats] = await Promise.all([
             apiCall('dates.php'),
+            apiCall('categories.php'),
+        ]);
+        sessionDates = Array.isArray(dates) ? dates : [];
+        categories = Array.isArray(cats) ? cats : [];
+        this.renderRegisterCategories();
+    }
+
+    async fetchData() {
+        const [presences] = await Promise.all([
+            apiCall('bookings.php?action=presences'),
+            this.fetchPublicData(),
         ]);
 
         // presences: ensure array; if API returned error object, show notification and fallback to []
@@ -446,12 +483,85 @@ class App {
 
     copyInviteLink(inputId) {
         const input = document.getElementById(inputId);
-        if (!input || !input.value) return;
-        navigator.clipboard.writeText(input.value).then(() => {
+        if (input) this.copyText(input.value);
+    }
+
+    copyText(text) {
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
             notify('Lien copié', 'success');
         }).catch(() => {
             notify('Copie automatique impossible, sélectionnez le texte manuellement', 'error');
         });
+    }
+
+    // Page admin "Catégories" : liste + lien d'inscription (?cat=...) à copier pour chacune
+    renderAdminCategories() {
+        const container = document.getElementById('admin-categories-list');
+        if (!container) return;
+
+        if (!categories || categories.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 italic">Aucune catégorie.</p>';
+            return;
+        }
+
+        const base = `${location.origin}${location.pathname}`;
+        container.innerHTML = categories.map(cat => {
+            const url = `${base}?cat=${encodeURIComponent(cat)}`;
+            return `
+            <div class="bg-white p-4 rounded-lg border border-gray-200 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="font-bold text-gray-800">${cat}</p>
+                    <p class="text-xs text-gray-500 truncate">${url}</p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" onclick="window.app.copyText('${url}')" class="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 transition whitespace-nowrap">
+                        <i class="fa-solid fa-copy mr-1"></i>Copier le lien
+                    </button>
+                    <button type="button" onclick="window.app.deleteCategory('${cat}')" class="text-gray-400 hover:text-red-600" title="Supprimer">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    async addCategory() {
+        const input = document.getElementById('new-category-name');
+        const name = input ? input.value.trim() : '';
+        if (!name) { notify('Entrez un nom de catégorie', 'error'); return; }
+
+        showLoading(true);
+        const res = await apiCall('categories.php', 'POST', { name });
+        showLoading(false);
+
+        if (res && res.success) {
+            notify('Catégorie ajoutée', 'success');
+            input.value = '';
+            await this.fetchPublicData();
+            this.renderAdminCategories();
+        } else {
+            notify(res ? res.message : 'Erreur', 'error');
+        }
+    }
+
+    deleteCategory(name) {
+        if (!confirm(`Supprimer la catégorie "${name}" ?`)) return;
+        this.deleteCategoryConfirmed(name);
+    }
+
+    async deleteCategoryConfirmed(name) {
+        showLoading(true);
+        const res = await apiCall(`categories.php?name=${encodeURIComponent(name)}`, 'DELETE');
+        showLoading(false);
+
+        if (res && res.success) {
+            notify('Catégorie supprimée', 'success');
+            await this.fetchPublicData();
+            this.renderAdminCategories();
+        } else {
+            notify(res ? res.message : 'Erreur', 'error');
+        }
     }
 
     refreshCurrentView() {
