@@ -63,9 +63,33 @@ class App {
         this.checkUrlParams();
         this.fetchPublicData(); // samedis + catégories : nécessaires même sans être connecté (formulaire d'inscription)
         this.initAuth();
+        this.handleVerifyToken(); // ?verify=... reçu par email
 
         const footerYear = document.getElementById('footer-year');
         if (footerYear) footerYear.textContent = new Date().getFullYear();
+    }
+
+    // Valide l'email si l'utilisateur arrive via le lien reçu par mail (?verify=TOKEN)
+    async handleVerifyToken() {
+        const token = new URLSearchParams(window.location.search).get('verify');
+        if (!token) return;
+
+        showLoading(true);
+        const res = await apiCall(`auth.php?action=verify&token=${encodeURIComponent(token)}`);
+        showLoading(false);
+
+        notify(res ? res.message : 'Erreur de validation', res && res.success ? 'success' : 'error');
+        this.nav('login');
+    }
+
+    async resendVerification() {
+        const email = (document.getElementById('login-email').value || '').trim();
+        if (!email) { notify('Entrez votre email dans le champ ci-dessus', 'error'); return; }
+
+        showLoading(true);
+        const res = await apiCall('auth.php?action=resend-verification', 'POST', { email });
+        showLoading(false);
+        notify(res ? res.message : 'Erreur', res && res.success ? 'success' : 'error');
     }
 
     // Construit la grille de samedis (regroupés par mois) à partir de sessionDates,
@@ -129,6 +153,10 @@ class App {
         // Catégorie préremplie via un lien d'invitation (?cat=...) ; appliquée dès que
         // les catégories sont chargées, car le <select> est rempli dynamiquement (async)
         this.pendingCategory = urlParams.get('cat') || null;
+
+        // ?code=... ou ?cat=... : on est arrivé via un lien d'invitation, direction
+        // la page d'inscription plutôt que la page de connexion par défaut
+        this.hasInviteLink = !!(code || this.pendingCategory);
     }
 
     // Remplit dynamiquement le <select> "Catégorie" du formulaire d'inscription
@@ -210,7 +238,7 @@ class App {
             this.nav('home');
         } else {
             currentUser = null;
-            this.nav('login');
+            this.nav(this.hasInviteLink ? 'register' : 'login');
         }
         showLoading(false);
         this.buildNav();
@@ -261,14 +289,16 @@ class App {
             this.fetchData();
             this.nav('home');
             this.buildNav();
+            document.getElementById('resend-verification-link').classList.add('hidden');
         } else {
             notify(res ? res.message : "Erreur connexion", "error");
+            document.getElementById('resend-verification-link').classList.toggle('hidden', !(res && res.unverified));
         }
     }
 
     async handleRegister(e) {
         e.preventDefault();
-        
+
         const codeInput = document.getElementById('reg-code');
         const data = {
             nom: document.getElementById('reg-nom').value,
@@ -286,21 +316,10 @@ class App {
         showLoading(false);
 
         if (res && res.success) {
-            // Auto-login after registration
-            notify("Compte créé ! Connexion en cours...", "success");
-            showLoading(true);
-            const loginRes = await apiCall('auth.php?action=login', 'POST', { email: data.email, password: data.password });
-            showLoading(false);
-            if (loginRes && loginRes.success) {
-                currentUser = loginRes.user;
-                notify('Connecté', 'success');
-                await this.fetchData();
-                this.nav('inscription');
-                this.buildNav();
-            } else {
-                notify('Inscription OK. Veuillez vous connecter.', 'info');
-                this.nav('login');
-            }
+            // Le compte doit être validé par email avant de pouvoir se connecter
+            notify(res.message || 'Compte créé ! Vérifiez votre boîte mail pour valider votre adresse.', 'success');
+            document.getElementById('login-email').value = data.email;
+            this.nav('login');
         } else {
             notify(res ? res.message : "Erreur inscription", "error");
         }

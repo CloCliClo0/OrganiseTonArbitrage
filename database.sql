@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS `users` (
     `role`        ENUM('admin','coach','joueur') NOT NULL DEFAULT 'joueur',
     `status`      ENUM('active','inactive') NOT NULL DEFAULT 'active',
     `commentaire` TEXT NULL,
+    `email_verified` TINYINT(1) NOT NULL DEFAULT 0,
+    `verify_token`   VARCHAR(64) NULL,
     `created_at`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),

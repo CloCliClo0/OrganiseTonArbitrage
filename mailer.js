@@ -105,4 +105,17 @@ async function sendPlayerReminder(player, date) {
     return sendMail(player.email, `${player.prenom} ${player.nom}`, subject, html);
 }
 
-module.exports = { sendMail, notifyStaffNewRegistration, sendPlayerReminder, emailLayout };
+/**
+ * Envoie le lien de validation d'adresse email après inscription.
+ */
+async function sendVerificationEmail(user, verifyUrl) {
+    const subject = 'Validez votre adresse email';
+    const body = `<p>Bonjour ${escapeHtml(user.prenom)},</p>
+        <p>Merci de votre inscription sur PlannifierMonArbitrage. Cliquez sur le bouton ci-dessous pour valider votre adresse email et activer votre compte :</p>
+        <p style="margin:24px 0;"><a href="${escapeHtml(verifyUrl)}" style="background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">Valider mon email</a></p>
+        <p style="font-size:12px;color:#6b7280;">Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>${escapeHtml(verifyUrl)}</p>`;
+    const html = emailLayout('Validez votre adresse email', body);
+    return sendMail(user.email, `${user.prenom} ${user.nom}`, subject, html);
+}
+
+module.exports = { sendMail, notifyStaffNewRegistration, sendPlayerReminder, sendVerificationEmail, emailLayout };
