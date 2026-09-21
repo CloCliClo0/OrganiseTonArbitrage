@@ -542,7 +542,8 @@ class App {
 
     // Recalcule l'URL générée à partir du type de compte (+ catégorie) sélectionnés :
     // admin -> ?admin_code=... (page d'inscription admin dédiée, pas de catégorie)
-    // coach -> ?code=...&cat=...   joueur -> ?cat=...
+    // coach -> ?code=CODE_COACH&cat=...   joueur -> ?code=CODE_JOUEUR&cat=...
+    // (un code est désormais obligatoire pour toute inscription, y compris joueur)
     renderInviteBuilder() {
         const type = document.getElementById('invite-type');
         const catWrap = document.getElementById('invite-category-wrap');
@@ -573,6 +574,12 @@ class App {
                     return;
                 }
                 params.set('code', this.inviteCodes.codeCoach);
+            } else if (type.value === 'joueur') {
+                if (!this.inviteCodes.codeJoueur) {
+                    this.setGeneratedUrl(null, 'CODE_JOUEUR non configuré dans le .env du serveur');
+                    return;
+                }
+                params.set('code', this.inviteCodes.codeJoueur);
             }
             const cat = catSelect ? catSelect.value : '';
             if (cat) params.set('cat', cat);

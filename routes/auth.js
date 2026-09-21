@@ -39,11 +39,17 @@ router.all('/', async (req, res) => {
             }
 
             const code = (data.code || '').trim();
-            let role = 'joueur';
+            let role = null;
             if (code && process.env.CODE_ADMIN && code === process.env.CODE_ADMIN) {
                 role = 'admin';
             } else if (code && process.env.CODE_COACH && code === process.env.CODE_COACH) {
                 role = 'coach';
+            } else if (code && process.env.CODE_JOUEUR && code === process.env.CODE_JOUEUR) {
+                role = 'joueur';
+            }
+
+            if (!role) {
+                return res.json({ success: false, message: "Code d'invitation invalide ou manquant. L'inscription se fait uniquement via un lien d'invitation fourni par le club." });
             }
 
             const hash = await bcrypt.hash(data.password, 10);
@@ -131,6 +137,7 @@ router.all('/', async (req, res) => {
                 success: true,
                 codeAdmin: process.env.CODE_ADMIN || '',
                 codeCoach: process.env.CODE_COACH || '',
+                codeJoueur: process.env.CODE_JOUEUR || '',
             });
         }
 
